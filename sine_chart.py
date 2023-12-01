@@ -1,30 +1,61 @@
-import xlsxwriter
+class Tokenizer:
+    def __init__(self, expression):
+        self.expression = expression
+        self.position = 0
+        self.tokens = []
 
-workbook = xlsxwriter.Workbook('sine.xlsx')
+    def tokenize(self):
+        while self.position < len(self.expression):
+            char = self.expression[self.position]
 
-worksheet = workbook.add_worksheet('chart')
+            if char.isdigit():
+                # Rozpoznawanie sekwencji cyfr
+                start = self.position
+                while self.position < len(self.expression) and self.expression[self.position].isdigit():
+                    self.position += 1
 
-data = {}
-for i in range(0, 181):
-    data.update({f'A{i}': i})
+                # Sprawdzenie, czy po cyfrach występuje kropka, co oznacza liczbę rzeczywistą
+                if self.position < len(self.expression) and self.expression[self.position] == '.':
+                    self.position += 1
 
-n = 0
+                    # Sprawdzenie, czy liczba rzeczywista zaczyna się od kropki
+                    while self.position < len(self.expression) and self.expression[self.position].isdigit():
+                        self.position += 1
 
-for x in range(0, 181):
-    worksheet.write(str(list(data.keys())[n]), str(list(data.values())[n]))
-    worksheet.write(f'B{n}', f'=sin(radians(A{n}))')
-    n = n + 1
+                    end = self.position - 1
+                    number_sequence = self.expression[start:end + 1]
+                else:
+                    end = self.position - 1
+                    number_sequence = self.expression[start:end + 1]
 
-chart = workbook.add_chart({'type': 'line'})
+                self.tokens.append({'character': number_sequence, 'type': 'number_real' if '.' in number_sequence else 'number_int', 'begin': start, 'end': end})
 
-chart.add_series({
-    'name': 'angle',
-    'values': '=chart!$A$1:$A$100',
-})
-chart.add_series({
-    'name': 'sine',
-    'values': '=chart!$B$1:$B$100',
-})
+            elif char.isalpha() or char == '_':
+                # Rozpoznawanie identyfikatorów
+                start = self.position
+                while self.position < len(self.expression) and (self.expression[self.position].isalnum() or self.expression[self.position] == '_'):
+                    self.position += 1
+                end = self.position - 1
+                identifier = self.expression[start:end + 1]
+                self.tokens.append({'character': identifier, 'type': 'identifier', 'begin': start, 'end': end})
 
-worksheet.insert_chart('D3', chart)
-workbook.close()
+            elif char.isspace():
+                self.position += 1
+
+            elif char in {'+', '-', '*', '/', '(', ')'}:
+                self.tokens.append({'character': char, 'type': f'operator_{char}', 'begin': self.position, 'end': self.position})
+                self.position += 1
+
+            else:
+                raise ValueError(f"Unexpected character at position {self.position}: {char}")
+
+        return self.tokens
+
+# Umożliwienie użytkownikowi wprowadzania wyrażenia
+user_expression = input("Wprowadź wyrażenie: ")
+tokenizer = Tokenizer(user_expression)
+tokens = tokenizer.tokenize()
+
+# Wypisanie tokenów w nowych liniach
+for token in tokens:
+    print(token)
